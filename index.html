@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyber Puzzle Challenge</title>
+<style>
+  :root { --bg:#08111f; --panel:#111e30; --panel2:#17273d; --line:#29405a; --text:#eef6ff; --muted:#9fb2c8; --accent:#4df0b5; --bad:#ff6b81; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(ellipse at top,#142b43 0%,var(--bg) 58%); color:var(--text); font-family:Inter,Segoe UI,Arial,sans-serif; }
+  .wrap { width:min(920px,92vw); margin:0 auto; padding:42px 0 56px; }
+  .tag { color:var(--accent); font-size:.78rem; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
+  h1 { font-size:clamp(2rem,5vw,3.5rem); margin:12px 0 10px; letter-spacing:-.04em; }
+  .intro { color:var(--muted); line-height:1.65; max-width:650px; margin:0 0 28px; }
+  .status { background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:18px; margin-bottom:18px; }
+  .statusline { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; color:var(--muted); font-size:.9rem; }
+  .bar { height:8px; border-radius:99px; background:#26384d; overflow:hidden; }
+  .barfill { height:100%; width:0%; background:var(--accent); transition:width .25s; }
+  .slots { display:grid; grid-template-columns:repeat(9,minmax(0,1fr)); gap:10px; margin:22px 0 12px; }
+  .slot { min-width:0; min-height:86px; border:1px solid var(--line); background:linear-gradient(160deg,var(--panel2),var(--panel)); border-radius:14px; color:var(--text); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; transition:transform .15s,border-color .15s,background .15s; }
+  .slot:hover { transform:translateY(-3px); border-color:var(--accent); }
+  .slot .char { font-size:1.65rem; font-weight:800; }
+  .slot .num { font-size:.7rem; color:var(--muted); }
+  .slot.solved { border-color:var(--accent); background:#10352f; }
+  .hint { font-size:.83rem; color:var(--muted); margin-bottom:28px; }
+  .card { background:rgba(17,30,48,.94); border:1px solid var(--line); border-radius:20px; padding:clamp(20px,4vw,32px); }
+  .cardhead { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .icon { display:grid; place-items:center; width:44px; height:44px; border-radius:12px; background:#1b3c4a; color:var(--accent); font-size:1.25rem; }
+  .eyebrow { color:var(--accent); text-transform:uppercase; letter-spacing:.12em; font-size:.72rem; font-weight:800; }
+  h2 { margin:4px 0 0; font-size:1.35rem; }
+  .question { line-height:1.7; font-size:1.05rem; margin:18px 0; white-space:pre-line; }
+  .clue { background:#0b1727; border-left:3px solid var(--accent); padding:12px 14px; color:var(--muted); border-radius:0 10px 10px 0; font-size:.92rem; margin-bottom:18px; }
+  label { display:block; font-size:.88rem; color:var(--muted); margin-bottom:8px; }
+  .answerrow { display:flex; gap:10px; }
+  input { min-width:0; flex:1; background:#081321; border:1px solid var(--line); border-radius:11px; padding:14px; color:var(--text); font-size:1rem; outline:none; }
+  input:focus { border-color:var(--accent); }
+  button.action { border:0; border-radius:11px; background:var(--accent); color:#062018; font-weight:800; padding:0 20px; cursor:pointer; }
+  button.action:hover { filter:brightness(1.06); }
+  .feedback { min-height:24px; margin-top:12px; font-size:.92rem; }
+  .feedback.ok { color:var(--accent); } .feedback.err { color:var(--bad); }
+  .complete { display:none; margin-top:18px; padding:18px; text-align:center; background:#10352f; border:1px solid var(--accent); border-radius:15px; }
+  .complete strong { display:block; color:var(--accent); font-size:1.8rem; letter-spacing:.14em; margin:10px 0; overflow-wrap:anywhere; }
+  .footer { color:#72869d; font-size:.78rem; text-align:center; margin-top:24px; }
+  @media(max-width:600px) { .wrap{padding-top:28px}.slots{gap:5px}.slot{min-height:70px;border-radius:10px}.slot .char{font-size:1.25rem}.slot .num{font-size:.62rem}.answerrow{flex-direction:column}.action{padding:14px!important} }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="tag">It Department • Puzzle Hunt</div>
+  <h1>Crack the Password</h1>
+  <p class="intro">Solve each challenge to unlock its character. Choose any tile to open its puzzle, submit your answer, and reveal the final password one piece at a time.</p>
+
+  <section class="status" aria-label="Challenge progress">
+    <div class="statusline"><span>CHALLENGES SOLVED</span><strong id="progressText">0 / 9</strong></div>
+    <div class="bar"><div class="barfill" id="progressBar"></div></div>
+  </section>
+
+  <section class="slots" id="slots" aria-label="Password tiles"></section>
+  <div class="hint">Select a tile to open its puzzle. Solved tiles stay unlocked.</div>
+
+  <section class="card" id="puzzleCard">
+    <div class="cardhead">
+      <div class="icon" id="puzzleIcon">⌁</div>
+      <div><div class="eyebrow" id="puzzleType">Choose a challenge</div><h2 id="puzzleTitle">Your first puzzle awaits</h2></div>
+    </div>
+    <div class="question" id="questionText">Click any of the nine tiles above to start.</div>
+    <div class="clue" id="clueText">Tip: Work as a team and keep track of each answer.</div>
+    <form id="answerForm">
+      <label for="answerInput">YOUR ANSWER</label>
+      <div class="answerrow">
+        <input id="answerInput" autocomplete="off" placeholder="Enter answer…" disabled>
+        <button class="action" id="submitBtn" type="submit" disabled>Check answer</button>
+      </div>
+    </form>
+    <div class="feedback" id="feedback" aria-live="polite"></div>
+  </section>
+
+  <div class="complete" id="completeBox">
+    <div class="eyebrow">MISSION COMPLETE</div>
+    <h2>All characters unlocked</h2>
+    <strong id="finalPassword"></strong>
+    <span>You solved all nine challenges.</span>
+  </div>
+  <div class="footer">CYBER PUZZLE CHALLENGE • Keep the answer key private</div>
+</main>
+
+<script>
+/*
+  HOST NOTE:
+  This is a front-end demo. The answer key is visible in the page source.
+  For a real competition, validate answers on a server and don't expose the password here.
+*/
+const puzzles = [
+  { type:"Cryptography", title:"Caesar Cipher", icon:"↶",
+    question:"A secret message has been encrypted using a Caesar Cipher. Each letter has been shifted 3 places forward in the alphabet.\nYour task is to shift the letter 3 places backward to reveal the original letter.\nEnter the letter in lowercase.",
+    clue:"Hint: Count backward 3 letters from L.",
+    answer:"i", display:"i" },
+  { type:"Signal Decoding", title:"Morse Code", icon:"⌁",
+    question:"Decode this Morse code signal:\n—\nEnter the letter in uppercase.",
+    clue:"Hint: Use the international Morse alphabet, a single dash. ",
+    answer:"T", display:"T" },
+  { type:"Digital Forensics", title:"ASCII Lookup", icon:"#",
+    question:"In the ASCII table, decimal value 33 represents which character?",
+    clue:"Hint: It is a punctuation mark often used to show excitement.",
+    answer:"!", display:"!" },
+  { type:"Logic", title:"The Only Even Prime", icon:"∴",
+    question:"I am an even number, and I am the only even prime number. What am I?",
+    clue:"Hint: A prime number has exactly two positive divisors.",
+    answer:"2", display:"2" },
+  { type:"Pattern Recognition", title:"Alphabet Mapping", icon:"A→",
+    question:"Use A = 1, B = 2, C = 3, and so on.\nWhich letter has the value 8?\nEnter the letter in uppercase.",
+    clue:"Hint: Count through the alphabet.",
+    answer:"H", display:"H" },
+  { type:"Logic", title:"Hidden Message", icon:"↶",
+    question:"A secret letter is hidden in the sentence below.\n\nEvery hacker should protect their passwords.\n\nLook carefully at the first letter of each word. Find the hidden letter that appears in the sentence.\nYour answer is a lowercase letter.",
+    clue:"Hint: look at the first letter of each word",
+    answer:"e", display:"e" },
+  { type:"Computer Fundamentals", title:"Binary to Decimal", icon:"01",
+    question:"Convert this binary number to decimal:\n00000011",
+    clue:"Hint: The rightmost two bits are 1 and 1.",
+    answer:"3", display:"3" },
+  { type:"Pattern Recognition", title:"Find the Missing Letter", icon:"A→",
+    question:"Complete the sequence:\nJ, K, ?, M, N\nWhat is the missing letter?\nEnter the letter in uppercase.",
+    clue:"Hint: Follow the alphabetical order.",
+    answer:"L", display:"L" },
+  { type:"Digital Forensics", title:"Hex to ASCII", icon:"0x",
+    question:"Convert hexadecimal value 0x70 to its ASCII character.",
+    clue:"Hint: 0x70 is decimal 112 in the ASCII table, it is lowercase.",
+    answer:"p", display:"p" }
+];
+
+const slotsEl = document.getElementById("slots");
+const progressText = document.getElementById("progressText");
+const progressBar = document.getElementById("progressBar");
+const answerInput = document.getElementById("answerInput");
+const submitBtn = document.getElementById("submitBtn");
+const feedback = document.getElementById("feedback");
+const completeBox = document.getElementById("completeBox");
+let activeIndex = null;
+const solved = new Set();
+
+function renderSlots() {
+  slotsEl.innerHTML = "";
+  puzzles.forEach((p, i) => {
+    const btn = document.createElement("button");
+    btn.className = "slot" + (solved.has(i) ? " solved" : "");
+    btn.type = "button";
+    btn.setAttribute("aria-label", `Open puzzle ${i + 1}${solved.has(i) ? ", solved" : ""}`);
+    btn.innerHTML = `<span class="char">${solved.has(i) ? escapeHtml(p.display) : "?"}</span><span class="num">${String(i+1).padStart(2,"0")}</span>`;
+    btn.addEventListener("click", () => openPuzzle(i));
+    slotsEl.appendChild(btn);
+  });
+  progressText.textContent = `${solved.size} / ${puzzles.length}`;
+  progressBar.style.width = `${solved.size / puzzles.length * 100}%`;
+  if (solved.size === puzzles.length) {
+    completeBox.style.display = "block";
+    document.getElementById("finalPassword").textContent = puzzles.map(p => p.display).join("");
+  }
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function openPuzzle(i) {
+  activeIndex = i;
+  const p = puzzles[i];
+  document.getElementById("puzzleIcon").textContent = p.icon;
+  document.getElementById("puzzleType").textContent = `Puzzle ${i+1} of ${puzzles.length} • ${p.type}`;
+  document.getElementById("puzzleTitle").textContent = p.title;
+  document.getElementById("questionText").textContent = p.question;
+  document.getElementById("clueText").textContent = solved.has(i) ? "This character has already been unlocked." : p.clue;
+  feedback.className = "feedback";
+  feedback.textContent = solved.has(i) ? `Solved! Character ${i+1} is ${p.display}.` : "";
+  answerInput.value = "";
+  answerInput.disabled = solved.has(i);
+  submitBtn.disabled = solved.has(i);
+  submitBtn.textContent = solved.has(i) ? "Unlocked" : "Check answer";
+  answerInput.placeholder = solved.has(i) ? "Already solved" : "Enter answer…";
+  if (!solved.has(i)) answerInput.focus();
+}
+document.getElementById("answerForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (activeIndex === null || solved.has(activeIndex)) return;
+  const guess = answerInput.value.trim();
+  const expected = puzzles[activeIndex].answer;
+  if (guess === expected) {
+    solved.add(activeIndex);
+    feedback.className = "feedback ok";
+    feedback.textContent = `Correct! You unlocked character ${activeIndex+1}: ${puzzles[activeIndex].display}`;
+    renderSlots();
+    document.getElementById("clueText").textContent = "Character unlocked. Choose another tile to continue.";
+    answerInput.disabled = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Unlocked";
+  } else {
+    feedback.className = "feedback err";
+    feedback.textContent = "Not quite. Check the clue and try again.";
+    answerInput.select();
+  }
+});
+renderSlots();
+</script>
+</body>
+</html>
